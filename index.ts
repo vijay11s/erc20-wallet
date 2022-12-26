@@ -1,80 +1,85 @@
-import crypto from "crypto-js";
-var hexToBinary = require("hex-to-binary");
-var binary = require("binary-to-decimal");
-const elliptic = require("elliptic");
-const ec = new elliptic.ec("secp256k1"); // use the secp256k1 curve
+import Web3 from "web3";
+import {
+  pubToAddress,
+  publicToAddress,
+  privateToPublic,
+  privateToAddress,
+  isValidPublic,
+  isValidPrivate,
+} from "ethereumjs-util";
+const bip39 = require('bip39');
 
-const { words } = require("./wordList");
+// import bip39 from "bip39";
+import hdkey from "hdkey";
+import crypto from "crypto";
+// const bip39 = require("bip39");
+// const hdkey = require("hdkey");
 
+// const web3 = new Web3(Web3.givenProvider);
+// const privateKey =
+//   "0xee837429ac9aea98c5db9e2f337609884ba3ad647967efd21ac78a95f4c49a5c";
+// const publicKey =
+//   "0xbf200cbda807a74b6961593d1168f51e0de501c97c376b2d46b733d7a835a2e04d692f64b039d4a2488f1ebea52f836d2cf82dad2b7d6c4a664e02693fe52b56";
+// const address = "0xFf47503845E91b902B46E62824Fbd3a4D122716c";
 
-// const entropy = crypto.lib.WordArray.random(32).toString();
-const entropy = "cd1531e2b7ada27a011fb4960e2d0642"
-const entropyBinary = hexToBinary(entropy);
-// const entropyBinary = "01110010101100011101011111111000011010100101110100000011100111010111111001111110010000111010000010100101010000100010011110011100";
-// const newEntopy =
-//   "100101010000110111111101011000100111001010110100100010100101010001000010111100111010011011111000011101000000101011010111000100111001";
-// console.log(entropyBinary, "ENTROPYBINARY");
-const hash = crypto.SHA256(entropy);
-const hashBinary = hexToBinary(hash.toString());
-// console.log(hashBinary.split("").slice(0, 4).join(""), "CHECK SUM");
-const hashFingerTip = hashBinary.split("").slice(0, 8).join("");
-const newEntopy = entropyBinary + hashFingerTip;
+// function createAccount(entropy?: string) {
+//   if (entropy && entropy.length !== 32) {
+//     return "Entropy should of 32 chars";
+//   }
+//   return web3.eth.accounts.create(entropy || "");
+// }
 
+// function accountByPrivateKey(privateKey: string) {
+//   if (privateKey) {
+//     return web3.eth.accounts.privateKeyToAccount(privateKey);
+//   }
+//   return "Please pass private key";
+// }
 
-let i = 0;
-let j = 11;
+// function privateKeyToPublickey(privateKey: string) {
+//   if (!privateKey) {
+//     return "Please pass private key";
+//   }
+//   const privateKeyBuffer = Buffer.from(privateKey.slice(2), "hex");
+//   return `0x${privateToPublic(privateKeyBuffer).toString("hex")}`;
+// }
 
-const arr = [];
-while (j <= newEntopy.length) {
-  const a = newEntopy.split("");
-  const data = a.slice(i, j).join("");
-  arr.push(data);
-  i += 11;
-  j += 11;
+// function publicKeyToAddress(publicKey: string) {
+//   if (!publicKey) {
+//     return "Please pass the public key";
+//   }
+//   const publicKeyBuffer = Buffer.from(publicKey.slice(2), "hex");
+//   const address = `0x${publicToAddress(publicKeyBuffer).toString("hex")}`;
+//   return address;
+// }
+
+function createAccount(passphrase?: string) {
+  const salt = "";
+  const password = passphrase || "";
+  const iterations = 2048;
+  const keylen = 16;
+  const derivedKey = crypto.pbkdf2Sync(
+    password,
+    salt,
+    iterations,
+    keylen,
+    "sha512"
+  );
+  const mnemonic = bip39.entropyToMnemonic(derivedKey);
+  const seed = bip39.mnemonicToSeedSync(mnemonic);
+  const root = hdkey.fromMasterSeed(seed);
+  const addrNode = root.derive("m/44'/60'/0'/0/0");
+  const pubKey = addrNode.publicKey;
+  // const addr = pubToAddress(pubKey).toString('hex');
+  const privateKey = addrNode.privateKey.toString('hex');
+  return {
+    derivedKey: derivedKey.toString('hex'),
+    mnemonic,
+    pubKey: pubKey.toString("hex"),
+    // addr,
+    privateKey
+  }
 }
 
-const wordList = [];
-for (let i = 0; i < arr.length; i++) {
-  const decimal = binary.decimal(arr[i]);
-  wordList.push(words[decimal]);
-}
-
-console.log(wordList.join(" "), "WORDLIST")
-
-/*
-Password: Mnemonic Sentence
-Salt: "mnemonic"+(optional passphrase)
-Iterations: 2048
-Algorithm: HMAC-SHA512
-Size: 64 bytes
-*/
-
-const password = wordList.join(" ");
-const salt = "mnemonic";
-const iterations = 2048;
-const keySize = 16;
-const seed = crypto
-  .PBKDF2(password, salt, {
-    keySize: keySize,
-    iterations: iterations,
-  })
-  .toString();
-
-console.log(seed);
-
-// const seed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
-
-const hmac = crypto.HmacSHA512(crypto.enc.Utf8.parse("Bitcoin seed"), seed);
-const masterKey = crypto.enc.Hex.parse(
-  hmac.toString(crypto.enc.Hex)
-).toString();
-const privateKey = masterKey.slice(0, 64);
-const chainCode = masterKey.slice(64);
-const keyPair = ec.keyFromPrivate(privateKey, "hex");
-const publicKey = keyPair.getPublic("hex");
-// const a = privateKey + chainCode + privateKey + chainCode
-// console.log(publicKey);
-// console.log(a.length);
-// console.log(chainCode);
-// console.log(privateKey + chainCode);
-// console.log(chainCode.toString());
+const account = createAccount("Arushi@0401");
+console.log(account)
